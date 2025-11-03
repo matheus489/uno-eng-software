@@ -86,6 +86,7 @@ class GameManager:
         
         return game.players[player_id].hand
     
+    
     def get_current_player(self, game_id: int) -> int:
         """Retorna o ID do jogador da vez"""
         game = self.games.get(game_id)

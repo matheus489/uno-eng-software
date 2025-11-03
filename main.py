@@ -24,8 +24,22 @@ def novo_jogo(quantidadeJog: int):
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+@app.get("/jogo/{id_jogo}/jogador_da_vez")
+def jogador_da_vez(id_jogo: int):
+    """
+    Retorna o ID do jogador da vez
+    """
+    try:
+        current_player = game_manager.get_current_player(id_jogo)
+        return {
+            "game_id": id_jogo,
+            "current_player": current_player
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
-@app.get("/jogo/{id_jogo}/{id_jogador}")
+@app.get("/jogo/{id_jogo}/jogador/{id_jogador}")
 def ver_cartas_jogador(id_jogo: int, id_jogador: int):
     """
     Retorna as cartas na mão do jogador especificado
@@ -37,20 +51,6 @@ def ver_cartas_jogador(id_jogo: int, id_jogador: int):
             "player_id": id_jogador,
             "cards": [str(card) for card in cards],
             "card_count": len(cards)
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-@app.get("/jogo/{id_jogo}/jogador_da_vez")
-def jogador_da_vez(id_jogo: int):
-    """
-    Retorna o ID do jogador da vez
-    """
-    try:
-        current_player = game_manager.get_current_player(id_jogo)
-        return {
-            "game_id": id_jogo,
-            "current_player": current_player
         }
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
