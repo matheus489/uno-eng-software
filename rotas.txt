@@ -1,0 +1,5 @@
+curl "http://localhost:8000/novoJogo?quantidadeJog=3"
+curl "http://localhost:8000/jogo/1/0"
+curl "http://localhost:8000/jogo/1/jogador_da_vez"
+curl -Method PUT "http://localhost:8000/jogo/1/jogar?id_jogador=0&id_carta=1"
+curl -Method PUT "http://localhost:8000/jogo/1/passa?id_jogador=0"
