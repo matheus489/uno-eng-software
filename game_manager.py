@@ -155,7 +155,7 @@ class GameManager(Subject):
 
         # Passar para o próximo jogador
         game.next_turn()
-        
+        self.notify(game)
         
         return {
             "message": "Carta jogada com sucesso",
@@ -187,6 +187,7 @@ class GameManager(Subject):
         
         # Passar para o próximo jogador
         game.next_turn()
+        self.notify(game)
         
         return {
             "message": "Vez passada com sucesso",
@@ -198,5 +199,3 @@ class GameManager(Subject):
         """Retorna o estado completo do jogo (para debug)"""
         return self.games.get(game_id)
 
-# Instância global do gerenciador de jogos
-game_manager = GameManager()

@@ -1,11 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from typing import List
 from models import Card
-from game_manager import game_manager
 
-from match_tracker import match_tracker
+from game_manager import GameManager
+from match_tracker import MatchTracker
 
 app = FastAPI(title="UNO Game API", description="API para gerenciar jogos de UNO")
+
+game_manager = GameManager()
+match_tracker = MatchTracker()
 
 game_manager.attach(match_tracker)
 

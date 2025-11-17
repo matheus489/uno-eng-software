@@ -56,7 +56,3 @@ class MatchTracker(Observer):
             "partidas_em_andamento": list(self.games_in_progress.values()),
             "partidas_finalizadas": list(self.games_finished.values())
         }
-
-# Cria uma instância global (Singleton) do nosso rastreador,
-# assim como você fez com o game_manager.
-match_tracker = MatchTracker()
