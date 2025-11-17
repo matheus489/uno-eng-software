@@ -2,10 +2,20 @@ import random
 from typing import List, Dict, Optional
 from models import Card, CardColor, CardType, Player, GameState, GameStatus
 
-class GameManager:
+from observer_pattern import Subject, Observer
+
+class GameManager(Subject):
     def __init__(self):
+        super().__init__()
         self.games: Dict[int, GameState] = {}
         self.next_game_id = 1
+
+        self._observers: List[Observer] = []
+
+    def notify(self, game_state: GameState):
+        """Notifica todos os observadores anexados."""
+        for observer in self._observers:
+            observer.update(game_state)
     
     def _create_deck(self) -> List[Card]:
         """Cria um baralho completo de UNO (sem cartas especiais para esta versão)"""
@@ -72,6 +82,8 @@ class GameManager:
         self.games[self.next_game_id] = game_state
         game_id = self.next_game_id
         self.next_game_id += 1
+
+        self.notify(game_state)
         
         return game_id
     
@@ -85,8 +97,7 @@ class GameManager:
             raise ValueError("Jogador não encontrado")
         
         return game.players[player_id].hand
-    
-    
+       
     def get_current_player(self, game_id: int) -> int:
         """Retorna o ID do jogador da vez"""
         game = self.games.get(game_id)
@@ -140,14 +151,18 @@ class GameManager:
             game.status = GameStatus.FINISHED
             game.winner = player_id
             game.next_turn()
+
+            self.notify(game)
+
             return {
                 "message": "Carta jogada com sucesso",
                 "winner": player_id,
                 "game_finished": True
             }
-        
+
         # Passar para o próximo jogador
         game.next_turn()
+        
         
         return {
             "message": "Carta jogada com sucesso",

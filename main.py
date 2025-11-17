@@ -3,11 +3,24 @@ from typing import List
 from models import Card
 from game_manager import game_manager
 
+from match_tracker import match_tracker
+
 app = FastAPI(title="UNO Game API", description="API para gerenciar jogos de UNO")
+
+game_manager.attach(match_tracker)
 
 @app.get("/")
 def read_root():
     return {"message": "Bem-vindo à API do UNO!"}
+
+@app.get("/partidas")
+def get_partidas():
+    """
+    Retorna as estatísticas de todas as partidas
+    (em andamento e finalizadas),
+    rastreadas pelo Observer.
+    """
+    return match_tracker.get_match_stats()
 
 @app.get("/novoJogo")
 def novo_jogo(quantidadeJog: int):
