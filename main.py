@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
-from typing import List
-from models import Card
+from typing import List, Optional
+from models import Card, CardColor
 from game_manager import game_manager
 
 app = FastAPI(title="UNO Game API", description="API para gerenciar jogos de UNO")
@@ -56,12 +56,13 @@ def ver_cartas_jogador(id_jogo: int, id_jogador: int):
         raise HTTPException(status_code=404, detail=str(e))
 
 @app.put("/jogo/{id_jogo}/jogar")
-def jogar_carta(id_jogo: int, id_jogador: int, id_carta: int):
+def jogar_carta(id_jogo: int, id_jogador: int, id_carta: int,
+    cor_escolhida: Optional[CardColor] = None):
     """
     Joga uma carta da mão do jogador
     """
     try:
-        result = game_manager.jogar_carta(id_jogo, id_jogador, id_carta)
+        result = game_manager.jogar_carta(id_jogo, id_jogador, id_carta, cor_escolhida)
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
