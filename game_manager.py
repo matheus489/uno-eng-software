@@ -1,31 +1,12 @@
 import random
 from typing import List, Dict, Optional
 from models import Card, CardColor, CardType, Player, GameState, GameStatus
+from card_facade import CardFacade
 
 class GameManager:
     def __init__(self):
         self.games: Dict[int, GameState] = {}
         self.next_game_id = 1
-    
-    def _create_deck(self) -> List[Card]:
-        """Cria um baralho completo de UNO (sem cartas especiais para esta versão)"""
-        deck = []
-        card_id = 0
-        
-        # Cartas numéricas (0-9) para cada cor
-        for color in CardColor:
-            # Uma carta 0 de cada cor
-            deck.append(Card(id=card_id, color=color, type=CardType.NUMBER, value=0))
-            card_id += 1
-            
-            # Duas cartas de 1-9 de cada cor
-            for value in range(1, 10):
-                deck.append(Card(id=card_id, color=color, type=CardType.NUMBER, value=value))
-                card_id += 1
-                deck.append(Card(id=card_id, color=color, type=CardType.NUMBER, value=value))
-                card_id += 1
-        
-        return deck
     
     def _shuffle_deck(self, deck: List[Card]) -> List[Card]:
         """Embaralha o deck"""
@@ -37,8 +18,8 @@ class GameManager:
         if quantidade_jogadores < 2 or quantidade_jogadores > 10:
             raise ValueError("Número de jogadores deve ser entre 2 e 10")
         
-        # Criar deck e embaralhar
-        deck = self._create_deck()
+        # Criar deck usando a fachada
+        deck = CardFacade.create_uno_deck()
         deck = self._shuffle_deck(deck)
         
         # Criar jogadores
@@ -98,11 +79,23 @@ class GameManager:
     def can_play_card(self, card: Card, top_card: Card) -> bool:
         """Verifica se uma carta pode ser jogada sobre a carta do topo"""
         # Cartas podem ser jogadas se forem da mesma cor ou mesmo valor
-        return card.color == top_card.color or (
-            card.type == CardType.NUMBER and 
-            top_card.type == CardType.NUMBER and 
-            card.value == top_card.value
-        )
+        return CardFacade.can_play_card(card, top_card)
+    
+    def get_playable_cards(self, game_id: int, player_id: int) -> List[Card]:
+        """Retorna as cartas jogáveis do jogador"""
+        game = self.games.get(game_id)
+        if not game:
+            raise ValueError("Jogo não encontrado")
+        
+        if player_id < 0 or player_id >= len(game.players):
+            raise ValueError("Jogador não encontrado")
+        
+        top_card = game.get_top_discard_card()
+        if not top_card:
+            return []
+        
+        player_hand = game.players[player_id].hand
+        return CardFacade.filter_playable_cards(player_hand, top_card)
     
     def jogar_carta(self, game_id: int, player_id: int, card_index: int) -> dict:
         """Joga uma carta da mão do jogador"""
