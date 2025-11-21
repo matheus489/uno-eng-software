@@ -1,16 +1,17 @@
 from fastapi import FastAPI, HTTPException
-from typing import List
-from models import Card
 
 from game_manager import GameManager
 from match_tracker import MatchTracker
+from typing import List, Optional
+from models import Card, CardColor
+
 
 app = FastAPI(title="UNO Game API", description="API para gerenciar jogos de UNO")
 
-game_manager = GameManager()
+GameManager = GameManager()
 match_tracker = MatchTracker()
 
-game_manager.attach(match_tracker)
+GameManager.attach(match_tracker)
 
 @app.get("/")
 def read_root():
@@ -32,7 +33,7 @@ def novo_jogo(quantidadeJog: int):
     Retorna o ID do jogo criado
     """
     try:
-        game_id = game_manager.novo_jogo(quantidadeJog)
+        game_id = GameManager.novo_jogo(quantidadeJog)
         return {
             "message": f"Novo jogo criado com {quantidadeJog} jogadores",
             "game_id": game_id,
@@ -47,7 +48,7 @@ def jogador_da_vez(id_jogo: int):
     Retorna o ID do jogador da vez
     """
     try:
-        current_player = game_manager.get_current_player(id_jogo)
+        current_player = GameManager.get_current_player(id_jogo)
         return {
             "game_id": id_jogo,
             "current_player": current_player
@@ -61,7 +62,7 @@ def ver_cartas_jogador(id_jogo: int, id_jogador: int):
     Retorna as cartas na mão do jogador especificado
     """
     try:
-        cards = game_manager.get_player_hand(id_jogo, id_jogador)
+        cards = GameManager.get_player_hand(id_jogo, id_jogador)
         return {
             "game_id": id_jogo,
             "player_id": id_jogador,
@@ -72,12 +73,13 @@ def ver_cartas_jogador(id_jogo: int, id_jogador: int):
         raise HTTPException(status_code=404, detail=str(e))
 
 @app.put("/jogo/{id_jogo}/jogar")
-def jogar_carta(id_jogo: int, id_jogador: int, id_carta: int):
+def jogar_carta(id_jogo: int, id_jogador: int, id_carta: int,
+    cor_escolhida: Optional[CardColor] = None):
     """
     Joga uma carta da mão do jogador
     """
     try:
-        result = game_manager.jogar_carta(id_jogo, id_jogador, id_carta)
+        result = GameManager.jogar_carta(id_jogo, id_jogador, id_carta, cor_escolhida)
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -88,7 +90,7 @@ def passar_vez(id_jogo: int, id_jogador: int):
     Passa a vez, comprando uma carta
     """
     try:
-        result = game_manager.passar_vez(id_jogo, id_jogador)
+        result = GameManager.passar_vez(id_jogo, id_jogador)
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -99,7 +101,7 @@ def debug_game_state(id_jogo: int):
     """
     Rota para debug - retorna o estado completo do jogo
     """
-    game_state = game_manager.get_game_state(id_jogo)
+    game_state = GameManager.get_game_state(id_jogo)
     if not game_state:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
     

@@ -1,6 +1,6 @@
 import random
 from typing import List, Dict, Optional
-from models import Card, CardColor, CardType, Player, GameState, GameStatus
+from models import Card, CardColor, CardType, Player, GameState, GameStatus, PlayDirection
 from card_facade import CardFacade
 
 from observer_pattern import Subject, Observer
@@ -46,7 +46,16 @@ class GameManager(Subject):
         
         # Colocar primeira carta na pilha de descarte
         discard_pile = []
-        if deck:
+        first_card = None
+        while deck and (first_card is None or first_card.type != CardType.NUMBER):
+            first_card = deck.pop()
+            if first_card.type == CardType.NUMBER:
+                discard_pile.append(first_card)
+            else:
+                deck.insert(0, first_card)  # Coloca no fundo do deck
+                first_card = None
+                
+        if not discard_pile and deck:
             first_card = deck.pop()
             discard_pile.append(first_card)
         
@@ -57,7 +66,9 @@ class GameManager(Subject):
             deck=deck,
             discard_pile=discard_pile,
             current_player_index=0,
-            status=GameStatus.IN_PROGRESS
+            status=GameStatus.IN_PROGRESS,
+            play_direction=PlayDirection.CLOCKWISE,
+            current_color=discard_pile[0].color if discard_pile else None
         )
         
         self.games[self.next_game_id] = game_state
@@ -87,10 +98,10 @@ class GameManager(Subject):
         
         return game.current_player_index
     
-    def can_play_card(self, card: Card, top_card: Card) -> bool:
+    def can_play_card(self, card: Card, top_card: Card, current_color: CardColor = None) -> bool:
         """Verifica se uma carta pode ser jogada sobre a carta do topo"""
-        # Cartas podem ser jogadas se forem da mesma cor ou mesmo valor
-        return CardFacade.can_play_card(card, top_card)
+        # Usar a fachada que considera a current_color
+        return CardFacade.can_play_card(card, top_card, current_color)
     
     def get_playable_cards(self, game_id: int, player_id: int) -> List[Card]:
         """Retorna as cartas jogáveis do jogador"""
@@ -108,7 +119,7 @@ class GameManager(Subject):
         player_hand = game.players[player_id].hand
         return CardFacade.filter_playable_cards(player_hand, top_card)
     
-    def jogar_carta(self, game_id: int, player_id: int, card_index: int) -> dict:
+    def jogar_carta(self, game_id: int, player_id: int, card_index: int, chosen_color: CardColor = None) -> dict:
         """Joga uma carta da mão do jogador"""
         game = self.games.get(game_id)
         if not game:
@@ -132,12 +143,33 @@ class GameManager(Subject):
         card_to_play = player.hand[card_index]
         
         # Verificar se a carta pode ser jogada
-        if not self.can_play_card(card_to_play, top_card):
-            raise ValueError(f"Carta não pode ser jogada. Carta do topo: {top_card}")
+        if not self.can_play_card(card_to_play, top_card, game.current_color):
+            current_color_display = game.current_color.value if game.current_color else top_card.color.value
+            raise ValueError(
+            f"Carta não pode ser jogada. Carta do topo: {top_card}, "
+            f"Cor atual: {current_color_display}"
+        )
+        
+        # Validação para cartas curinga
+        if card_to_play.type in [CardType.WILD, CardType.WILD_DRAW_FOUR] and not chosen_color:
+            raise ValueError("Cartas curinga requerem uma cor escolhida. Use o parâmetro cor_escolhida.")
+        
+        # Validação da cor escolhida
+        if chosen_color and chosen_color not in [CardColor.RED, CardColor.BLUE, CardColor.GREEN, CardColor.YELLOW]:
+            raise ValueError("Cor escolhida deve ser RED, BLUE, GREEN ou YELLOW")
         
         # Remover carta da mão do jogador e colocar na pilha de descarte
         played_card = player.remove_card(card_index)
         game.discard_pile.append(played_card)
+        
+        # Aplicar efeito da carta - passando a cor escolhida
+        effect_result = game.apply_card_effect(played_card, chosen_color)
+        
+        # Atualizar cor atual se necessário
+        if played_card.type in [CardType.WILD, CardType.WILD_DRAW_FOUR] and chosen_color:
+            game.current_color = chosen_color
+        elif played_card.type != CardType.WILD and played_card.type != CardType.WILD_DRAW_FOUR:
+            game.current_color = played_card.color
         
         # Verificar se o jogador ganhou
         if not player.has_cards():
@@ -150,17 +182,19 @@ class GameManager(Subject):
             return {
                 "message": "Carta jogada com sucesso",
                 "winner": player_id,
-                "game_finished": True
+                "game_finished": True,
+                "played_card": CardFacade.get_card_display_name(played_card),
+                "effect": effect_result
             }
 
-        # Passar para o próximo jogador
         game.next_turn()
         self.notify(game)
         
         return {
             "message": "Carta jogada com sucesso",
             "played_card": str(played_card),
-            "next_player": game.current_player_index
+            "next_player": game.current_player_index,
+            "effect": effect_result
         }
     
     def passar_vez(self, game_id: int, player_id: int) -> dict:
@@ -181,7 +215,7 @@ class GameManager(Subject):
         if game.deck:
             card = game.deck.pop()
             player.add_card(card)
-            card_message = f"Comprou: {card}"
+            card_message = f"Comprou: {CardFacade.get_card_display_name(card)}"
         else:
             card_message = "Deck vazio - não foi possível comprar carta"
         

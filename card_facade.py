@@ -1,5 +1,6 @@
 from typing import List, Optional
-from models import Card, CardColor, CardType
+from models import Card, CardColor, CardType, GameState
+from card_effects import CardEffectFactory
 
 class CardFacade:
     """
@@ -16,14 +17,15 @@ class CardFacade:
         deck = []
         card_id = 0
         
-        # Cartas numéricas (0-9) para cada cor
-        for color in CardColor:
+        # Cartas numéricas (0-9) para cada cor (apenas cores normais, não WILD)
+        for color in [CardColor.RED, CardColor.BLUE, CardColor.GREEN, CardColor.YELLOW]:
             # Uma carta 0 de cada cor
             deck.append(Card(
                 id=card_id, 
                 color=color, 
                 type=CardType.NUMBER, 
-                value=0
+                value=0,
+                effect_strategy=CardEffectFactory.create_effect(CardType.NUMBER)
             ))
             card_id += 1
             
@@ -33,36 +35,83 @@ class CardFacade:
                     id=card_id, 
                     color=color, 
                     type=CardType.NUMBER, 
-                    value=value
+                    value=value,
+                    effect_strategy=CardEffectFactory.create_effect(CardType.NUMBER)
                 ))
                 card_id += 1
                 deck.append(Card(
                     id=card_id, 
                     color=color, 
                     type=CardType.NUMBER, 
-                    value=value
+                    value=value,
+                    effect_strategy=CardEffectFactory.create_effect(CardType.NUMBER)
+                ))
+                card_id += 1
+        
+        # Cartas de ação para cada cor (2 de cada) - FORA DO LOOP ANTERIOR
+        action_cards = [
+            (CardType.SKIP, 2),
+            (CardType.REVERSE, 2), 
+            (CardType.DRAW_TWO, 2)
+        ]
+        
+        for color in [CardColor.RED, CardColor.BLUE, CardColor.GREEN, CardColor.YELLOW]:
+            for card_type, quantity in action_cards:
+                for _ in range(quantity):
+                    deck.append(Card(
+                        id=card_id,
+                        color=color,
+                        type=card_type,
+                        effect_strategy=CardEffectFactory.create_effect(card_type)
+                    ))
+                    card_id += 1
+        
+        # Cartas curinga (4 de cada) - FORA DE TODOS OS LOOPS
+        wild_cards = [
+            (CardType.WILD, 4),
+            (CardType.WILD_DRAW_FOUR, 4)
+        ]
+        
+        for card_type, quantity in wild_cards:
+            for _ in range(quantity):
+                deck.append(Card(
+                    id=card_id,
+                    color=CardColor.WILD,
+                    type=card_type,
+                    effect_strategy=CardEffectFactory.create_effect(card_type)
                 ))
                 card_id += 1
         
         return deck
     
     @staticmethod
-    def can_play_card(card: Card, top_card: Card) -> bool:
+    def can_play_card(card: Card, top_card: Card, current_color: Optional[CardColor] = None) -> bool:
         """
         Verifica se uma carta pode ser jogada sobre a carta do topo
-        Regras: mesma cor OU mesmo valor (para cartas numéricas)
+        Considera a cor atual para cartas curinga
         """
-        # Cartas podem ser jogadas se forem da mesma cor
-        if card.color == top_card.color:
+        # Cartas curinga podem ser jogadas a qualquer momento
+        if card.type in [CardType.WILD, CardType.WILD_DRAW_FOUR]:
             return True
         
-        # Ou se forem cartas numéricas com o mesmo valor
-        if (card.type == CardType.NUMBER and 
-            top_card.type == CardType.NUMBER and 
-            card.value == top_card.value):
-            return True
+        # Se há uma cor definida por carta curinga, usa essa cor
+        # Se não há current_color, usa a cor da carta do topo
+        effective_top_color = current_color if current_color else top_card.color
         
-        return False
+        # **CORREÇÃO: Se a cor efetiva é WILD, nenhuma carta normal pode ser jogada**
+        # (a menos que seja outra carta curinga)
+        if effective_top_color == CardColor.WILD:
+            return False
+        
+        # Cartas normais: mesma cor ou mesmo tipo
+        return card.color == effective_top_color or card.type == top_card.type
+    
+    @staticmethod
+    def apply_card_effect(card: Card, game: GameState, player_id: int, **kwargs) -> dict:
+        """
+        Aplica o efeito da carta usando a strategy
+        """
+        return card.apply_effect(game, player_id)
     
     @staticmethod
     def get_card_display_name(card: Card) -> str:
@@ -81,7 +130,6 @@ class CardFacade:
         """
         if card.type == CardType.NUMBER:
             return card.value or 0
-        # Para futuras cartas especiais
         elif card.type in [CardType.SKIP, CardType.REVERSE, CardType.DRAW_TWO]:
             return 20
         elif card.type in [CardType.WILD, CardType.WILD_DRAW_FOUR]:
@@ -90,19 +138,18 @@ class CardFacade:
             return 0
     
     @staticmethod
-    def filter_playable_cards(hand: List[Card], top_card: Card) -> List[Card]:
+    def filter_playable_cards(hand: List[Card], top_card: Card, current_color: Optional[CardColor] = None) -> List[Card]:
         """
         Filtra as cartas jogáveis da mão do jogador
-        Retorna: Lista de cartas que podem ser jogadas
         """
-        return [card for card in hand if CardFacade.can_play_card(card, top_card)]
+        return [card for card in hand if CardFacade.can_play_card(card, top_card, current_color)]
     
     @staticmethod
-    def has_playable_cards(hand: List[Card], top_card: Card) -> bool:
+    def has_playable_cards(hand: List[Card], top_card: Card, current_color: Optional[CardColor] = None) -> bool:
         """
         Verifica se o jogador tem cartas jogáveis
         """
-        return any(CardFacade.can_play_card(card, top_card) for card in hand)
+        return any(CardFacade.can_play_card(card, top_card, current_color) for card in hand)
     
     @staticmethod
     def calculate_hand_value(hand: List[Card]) -> int:
