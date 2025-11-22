@@ -252,8 +252,6 @@ class GameState(BaseModel):
         elif card.type == CardType.WILD_DRAW_FOUR:
             return self.apply_wild_draw_four_effect(chosen_color)
         else:
-            # Para cartas numéricas, apenas passa a vez
-            self.next_turn()
             return {
                 "message": "Carta numérica jogada",
                 "effect": "none",

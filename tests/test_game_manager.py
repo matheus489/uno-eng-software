@@ -2,6 +2,7 @@ import pytest
 from game_manager import GameManager
 from models import Card, CardColor, CardType
 from models import GameStatus
+from card_effects import NumberCardEffect
 
 @pytest.fixture
 def manager():
@@ -31,14 +32,21 @@ def test_jogar_carta_valida(manager: GameManager):
     
     top_card = game.get_top_discard_card()
     
-    # altera a cor da primeira carta da mão do jogador 0 para combinar com a do topo
-    carta_jogavel = game.players[0].hand.pop() 
-    carta_jogavel.color = top_card.color    
-    game.players[0].hand.insert(0, carta_jogavel) 
+    carta_limpa = Card(
+        id=999, 
+        color=top_card.color, 
+        type=CardType.NUMBER, 
+        value=5
+    )
+    
+    carta_limpa.effect_strategy = NumberCardEffect()
+
+    game.players[0].hand.insert(0, carta_limpa)
     
     result = manager.jogar_carta(game_id, player_id=0, card_index=0)
     
     assert result["message"] == "Carta jogada com sucesso"
+    
     assert game.current_player_index == 1
 
 def test_jogar_carta_turno_errado(manager: GameManager):
@@ -54,9 +62,11 @@ def test_jogar_carta_errada(manager: GameManager):
     game = manager.get_game_state(game_id)
     
     top_card = game.get_top_discard_card()
-    
+
     carta_invalida = game.players[0].hand[0]
-    
+
+    carta_invalida.type = CardType.NUMBER
+
     # Garante que a carta é inválida (cor e valor diferente)
     carta_invalida.color = CardColor.GREEN if top_card.color != CardColor.GREEN else CardColor.BLUE
     carta_invalida.value = 1 if top_card.value != 1 else 2

@@ -4,7 +4,7 @@ from card_facade import CardFacade
 def test_create_uno_deck():
     """Testa se o baralho é criado com o número correto de cartas."""
     deck = CardFacade.create_uno_deck()
-    assert len(deck) == 76
+    assert len(deck) == 108
 
 def test_can_play_card_mesma_cor():
     """Testa se pode jogar cartas de mesma cor."""

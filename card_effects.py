@@ -6,14 +6,23 @@ from models import Card, CardColor, CardType, GameState, CardEffectStrategy
 class BaseCardEffect(CardEffectStrategy, ABC):
     def can_play(self, Card: Card, top_Card: Card) -> bool:
         """Cartas de ação podem ser jogadas se forem da mesma cor ou do mesmo tipo"""
-        return Card.color == top_Card.color or Card.type == top_Card.type
+        if Card.color == top_Card.color:
+            return True
+            
+        if Card.type == top_Card.type:
+            if Card.type == CardType.NUMBER:
+                return Card.value == top_Card.value
+            return True
+            
+        return False
 
 # Efeito para cartas numéricas (sem efeito especial)
 class NumberCardEffect(BaseCardEffect):
     def apply_effect(self, game: GameState, player_id: int) -> Dict[str, Any]:
-        return game.apply_Card_effect(Card(
-            id=0, color=Card.color, type=CardType.NUMBER, value=Card.value
-        ))
+        return {
+            "action": "number_played",
+            "description": "Carta numérica jogada sem efeitos adicionais."
+        }
 
 # Efeito para carta Skip (Pular)
 class SkipCardEffect(BaseCardEffect):

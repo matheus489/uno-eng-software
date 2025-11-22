@@ -17,9 +17,7 @@ class CardFacade:
         deck = []
         card_id = 0
         
-        # Cartas numéricas (0-9) para cada cor (apenas cores normais, não WILD)
         for color in [CardColor.RED, CardColor.BLUE, CardColor.GREEN, CardColor.YELLOW]:
-            # Uma carta 0 de cada cor
             deck.append(Card(
                 id=card_id, 
                 color=color, 
@@ -29,7 +27,6 @@ class CardFacade:
             ))
             card_id += 1
             
-            # Duas cartas de 1-9 de cada cor
             for value in range(1, 10):
                 deck.append(Card(
                     id=card_id, 
@@ -48,7 +45,6 @@ class CardFacade:
                 ))
                 card_id += 1
         
-        # Cartas de ação para cada cor (2 de cada) - FORA DO LOOP ANTERIOR
         action_cards = [
             (CardType.SKIP, 2),
             (CardType.REVERSE, 2), 
@@ -90,21 +86,24 @@ class CardFacade:
         Verifica se uma carta pode ser jogada sobre a carta do topo
         Considera a cor atual para cartas curinga
         """
-        # Cartas curinga podem ser jogadas a qualquer momento
+
         if card.type in [CardType.WILD, CardType.WILD_DRAW_FOUR]:
             return True
         
-        # Se há uma cor definida por carta curinga, usa essa cor
-        # Se não há current_color, usa a cor da carta do topo
         effective_top_color = current_color if current_color else top_card.color
         
-        # **CORREÇÃO: Se a cor efetiva é WILD, nenhuma carta normal pode ser jogada**
-        # (a menos que seja outra carta curinga)
         if effective_top_color == CardColor.WILD:
             return False
-        
-        # Cartas normais: mesma cor ou mesmo tipo
-        return card.color == effective_top_color or card.type == top_card.type
+            
+        if card.color == effective_top_color:
+            return True
+
+        if card.type == top_card.type:
+            if card.type == CardType.NUMBER:
+                return card.value == top_card.value
+            return True
+            
+        return False
     
     @staticmethod
     def apply_card_effect(card: Card, game: GameState, player_id: int, **kwargs) -> dict:
