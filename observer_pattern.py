@@ -11,7 +11,9 @@ class Observer(ABC):
 
 # Interface para o Sujeito (Subject)
 class Subject(ABC):
-    _observers: List[Observer] = []
+    def __init__(self):
+        """Inicializa o Subject com uma lista vazia de observadores."""
+        self._observers: List[Observer] = []
 
     def attach(self, observer: Observer):
         """Adiciona um observador."""
@@ -28,5 +30,4 @@ class Subject(ABC):
     @abstractmethod
     def notify(self, game_state: GameState):
         """Notifica todos os observadores sobre uma mudança."""
-        for observer in self._observers:
-            observer.update(game_state)
+        pass

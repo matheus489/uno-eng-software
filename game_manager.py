@@ -11,8 +11,6 @@ class GameManager(Subject):
         self.games: Dict[int, GameState] = {}
         self.next_game_id = 1
 
-        self._observers: List[Observer] = []
-
     def notify(self, game_state: GameState):
         """Notifica todos os observadores anexados."""
         for observer in self._observers:
@@ -23,28 +21,45 @@ class GameManager(Subject):
         random.shuffle(deck)
         return deck
     
-    def novo_jogo(self, quantidade_jogadores: int) -> int:
-        """Inicia um novo jogo e retorna o ID do jogo"""
-        if quantidade_jogadores < 2 or quantidade_jogadores > 10:
-            raise ValueError("Número de jogadores deve ser entre 2 e 10")
-        
-        # Criar deck usando a fachada
-        deck = CardFacade.create_uno_deck()
-        deck = self._shuffle_deck(deck)
-        
-        # Criar jogadores
+    def _validate_game_exists(self, game_id: int) -> GameState:
+        """Valida se o jogo existe e retorna o estado do jogo"""
+        game = self.games.get(game_id)
+        if not game:
+            raise ValueError("Jogo não encontrado")
+        return game
+    
+    def _validate_player_exists(self, game: GameState, player_id: int) -> None:
+        """Valida se o jogador existe no jogo"""
+        if player_id < 0 or player_id >= len(game.players):
+            raise ValueError("Jogador não encontrado")
+    
+    def _validate_game_in_progress(self, game: GameState) -> None:
+        """Valida se o jogo está em andamento"""
+        if game.status != GameStatus.IN_PROGRESS:
+            raise ValueError("Jogo não está em andamento")
+    
+    def _validate_player_turn(self, game: GameState, player_id: int) -> None:
+        """Valida se é a vez do jogador"""
+        if player_id != game.current_player_index:
+            raise ValueError("Não é a vez deste jogador")
+    
+    def _create_players(self, quantidade_jogadores: int) -> List[Player]:
+        """Cria a lista de jogadores para o jogo"""
         players = []
         for i in range(quantidade_jogadores):
             players.append(Player(id=i))
-        
-        # Distribuir 5 cartas para cada jogador
+        return players
+    
+    def _deal_cards(self, players: List[Player], deck: List[Card], cards_per_player: int = 5) -> None:
+        """Distribui cartas para cada jogador"""
         for player in players:
-            for _ in range(5):
+            for _ in range(cards_per_player):
                 if deck:
                     card = deck.pop()
                     player.add_card(card)
-        
-        # Colocar primeira carta na pilha de descarte
+    
+    def _setup_discard_pile(self, deck: List[Card]) -> List[Card]:
+        """Configura a pilha de descarte com a primeira carta apropriada"""
         discard_pile = []
         first_card = None
         while deck and (first_card is None or first_card.type != CardType.NUMBER):
@@ -58,6 +73,24 @@ class GameManager(Subject):
         if not discard_pile and deck:
             first_card = deck.pop()
             discard_pile.append(first_card)
+        
+        return discard_pile
+    
+    def novo_jogo(self, quantidade_jogadores: int) -> int:
+        """Inicia um novo jogo e retorna o ID do jogo"""
+        if quantidade_jogadores < 2 or quantidade_jogadores > 10:
+            raise ValueError("Número de jogadores deve ser entre 2 e 10")
+        
+        # Criar e embaralhar o deck
+        deck = CardFacade.create_uno_deck()
+        deck = self._shuffle_deck(deck)
+        
+        # Criar jogadores e distribuir cartas
+        players = self._create_players(quantidade_jogadores)
+        self._deal_cards(players, deck)
+        
+        # Configurar pilha de descarte
+        discard_pile = self._setup_discard_pile(deck)
         
         # Criar estado do jogo
         game_state = GameState(
@@ -81,21 +114,14 @@ class GameManager(Subject):
     
     def get_player_hand(self, game_id: int, player_id: int) -> List[Card]:
         """Retorna as cartas na mão do jogador"""
-        game = self.games.get(game_id)
-        if not game:
-            raise ValueError("Jogo não encontrado")
-        
-        if player_id < 0 or player_id >= len(game.players):
-            raise ValueError("Jogador não encontrado")
+        game = self._validate_game_exists(game_id)
+        self._validate_player_exists(game, player_id)
         
         return game.players[player_id].hand
        
     def get_current_player(self, game_id: int) -> int:
         """Retorna o ID do jogador da vez"""
-        game = self.games.get(game_id)
-        if not game:
-            raise ValueError("Jogo não encontrado")
-        
+        game = self._validate_game_exists(game_id)
         return game.current_player_index
     
     def can_play_card(self, card: Card, top_card: Card, current_color: CardColor = None) -> bool:
@@ -105,12 +131,8 @@ class GameManager(Subject):
     
     def get_playable_cards(self, game_id: int, player_id: int) -> List[Card]:
         """Retorna as cartas jogáveis do jogador"""
-        game = self.games.get(game_id)
-        if not game:
-            raise ValueError("Jogo não encontrado")
-        
-        if player_id < 0 or player_id >= len(game.players):
-            raise ValueError("Jogador não encontrado")
+        game = self._validate_game_exists(game_id)
+        self._validate_player_exists(game, player_id)
         
         top_card = game.get_top_discard_card()
         if not top_card:
@@ -121,15 +143,9 @@ class GameManager(Subject):
     
     def jogar_carta(self, game_id: int, player_id: int, card_index: int, chosen_color: CardColor = None) -> dict:
         """Joga uma carta da mão do jogador"""
-        game = self.games.get(game_id)
-        if not game:
-            raise ValueError("Jogo não encontrado")
-        
-        if game.status != GameStatus.IN_PROGRESS:
-            raise ValueError("Jogo não está em andamento")
-        
-        if player_id != game.current_player_index:
-            raise ValueError("Não é a vez deste jogador")
+        game = self._validate_game_exists(game_id)
+        self._validate_game_in_progress(game)
+        self._validate_player_turn(game, player_id)
         
         player = game.players[player_id]
         top_card = game.get_top_discard_card()
@@ -199,15 +215,9 @@ class GameManager(Subject):
     
     def passar_vez(self, game_id: int, player_id: int) -> dict:
         """Passa a vez, comprando uma carta"""
-        game = self.games.get(game_id)
-        if not game:
-            raise ValueError("Jogo não encontrado")
-        
-        if game.status != GameStatus.IN_PROGRESS:
-            raise ValueError("Jogo não está em andamento")
-        
-        if player_id != game.current_player_index:
-            raise ValueError("Não é a vez deste jogador")
+        game = self._validate_game_exists(game_id)
+        self._validate_game_in_progress(game)
+        self._validate_player_turn(game, player_id)
         
         player = game.players[player_id]
         

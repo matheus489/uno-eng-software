@@ -4,14 +4,14 @@ from models import Card, CardColor, CardType, GameState, CardEffectStrategy
 
 # Strategy Base
 class BaseCardEffect(CardEffectStrategy, ABC):
-    def can_play(self, Card: Card, top_Card: Card) -> bool:
+    def can_play(self, card: Card, top_card: Card) -> bool:
         """Cartas de ação podem ser jogadas se forem da mesma cor ou do mesmo tipo"""
-        if Card.color == top_Card.color:
+        if card.color == top_card.color:
             return True
             
-        if Card.type == top_Card.type:
-            if Card.type == CardType.NUMBER:
-                return Card.value == top_Card.value
+        if card.type == top_card.type:
+            if card.type == CardType.NUMBER:
+                return card.value == top_card.value
             return True
             
         return False
@@ -44,7 +44,7 @@ class WildCardEffect(BaseCardEffect):
     def apply_effect(self, game: GameState, player_id: int, chosen_color: CardColor = None) -> Dict[str, Any]:
         return game.apply_wild_effect(chosen_color)
     
-    def can_play(self, Card: Card, top_Card: Card) -> bool:
+    def can_play(self, card: Card, top_card: Card) -> bool:
         return True
 
 # Efeito para carta Wild Draw Four (+4 Curinga)
@@ -52,13 +52,13 @@ class WildDrawFourCardEffect(BaseCardEffect):
     def apply_effect(self, game: GameState, player_id: int, chosen_color: CardColor = None) -> Dict[str, Any]:
         return game.apply_wild_draw_four_effect(chosen_color)
     
-    def can_play(self, Card: Card, top_Card: Card) -> bool:
+    def can_play(self, card: Card, top_card: Card) -> bool:
         return True
 
 # Fábrica de Strategies
 class CardEffectFactory:
     @staticmethod
-    def create_effect(Card_type: CardType) -> CardEffectStrategy:
+    def create_effect(card_type: CardType) -> CardEffectStrategy:
         effects = {
             CardType.NUMBER: NumberCardEffect(),
             CardType.SKIP: SkipCardEffect(),
@@ -67,4 +67,4 @@ class CardEffectFactory:
             CardType.WILD: WildCardEffect(),
             CardType.WILD_DRAW_FOUR: WildDrawFourCardEffect()
         }
-        return effects.get(Card_type, NumberCardEffect())
+        return effects.get(card_type, NumberCardEffect())
